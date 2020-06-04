@@ -20,6 +20,10 @@
       (vector-set! v (kind t) (cons t (vector-ref v (kind t)))))
     v))
 
+; two states are distinguishable if
+; 1. one is an end state but not the other
+; 2. on the same symbol they lead to distinguishable states
+; fill-frst implements 1.
 (define (fill-first x y ha auto)
   (for*/fold ([h ha])
              ([state-a y]
@@ -28,7 +32,7 @@
     (define state-b-end (member state-b (dfa-end auto)))
     (if (and (or state-a-end state-b-end)
              (not (and state-a-end state-b-end)))
-        ; distinguishable
+        ; distinguishable (marked)
         (firstfill state-a state-b #f h)
         ; not distinguishable (blank)
         (firstfill state-a state-b #t h))))
@@ -38,6 +42,10 @@
   (hash-set! h key value)
   h)
 
+; a preliminary table fill. it works backwards from an end state
+; to a state x for the symbol s. for every state t
+; (s,t) is probably distinguishable on x since it leads to an
+; end state for s. repeat by setting s as a new "end state".
 (define (fill-it total new-states auto tab inv-to)
   (define-values (new new-tab)
     (for/fold ([t (set)]
@@ -80,7 +88,10 @@
   (hash-set! tab key value)
   tab)
 
-;; fill table
+; fill table, algorithm from course book.
+; for any two states, see if any symbol
+; leads to two distinguishable states. if they
+; do, the two states are also distinguishable.
 (define nr 0)
 
 (define (fill-everything x y tab auto)
@@ -124,7 +135,8 @@
   (define key (if (< x y)(cons x y)(cons y x)))
   (or (eq? x y) (hash-ref tab key)))
 
-;; construct-min-states
+; construct-min-states
+; a collection of equivalent states becomes a new state
 (define (construct-min-states table)
   (define already-member? #f)
   (for ([s (dfa-states dfa-automata)])
@@ -146,7 +158,9 @@
       (set! new-state (cons (car k) new-state))))
   new-state)
 
-;; construct-min-transitions
+; construct-min-transitions
+; trace transitions from each single state in a collected state
+; the union of destinations is the new destination state.
 (define (construct-min-transitions)
   (for* ([s (dfa-states min-automata)]
          [a (dfa-alphabet dfa-automata)])
